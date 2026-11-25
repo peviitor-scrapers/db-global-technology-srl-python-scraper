@@ -54,7 +54,7 @@ curl "https://api.peviitor.ro/v1/firme/company/?cif=32193007"
 curl "https://api.peviitor.ro/v1/search/?q=DB%20GLOBAL%20TECHNOLOGY&rows=50&page=1"
 ```
 
-Scraperul rulează automat verificarea după upload (caută URL-urile în `response.docs[]`). Un răspuns `200` de la upload nu este suficient singur.
+Scraperul rulează automat verificarea după upload (caută URL-urile în `response.docs[]`, cu 3 încercări la 5 secunde, pentru că indexarea Solr are un mic lag față de `commitWithin`). Un răspuns `200` de la upload nu este suficient singur.
 
 ## Teste
 

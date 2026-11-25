@@ -287,19 +287,25 @@ def upload_jobs(jobs):
     return count, [job["url"] for job in jobs[:count]]
 
 
-def verify_uploads(urls, rows=50, max_pages=10):
-    """Search peviitor by company name and report which uploaded URLs are indexed."""
+def verify_uploads(urls, rows=50, max_pages=10, attempts=3, retry_delay=5):
+    """Search peviitor by company name, retrying while Solr finishes indexing."""
     wanted = set(urls)
     found = set()
-    for page in range(1, max_pages + 1):
-        query = urllib.parse.urlencode({"q": COMPANY_NAME, "rows": rows, "page": page})
-        result = http_json("GET", f"{API_BASE}/search/?{query}")
-        docs = (result.get("response") or {}).get("docs") or [] if isinstance(result, dict) else []
-        if not docs:
+    for attempt in range(attempts):
+        found = set()
+        for page in range(1, max_pages + 1):
+            query = urllib.parse.urlencode({"q": COMPANY_NAME, "rows": rows, "page": page})
+            result = http_json("GET", f"{API_BASE}/search/?{query}")
+            docs = (result.get("response") or {}).get("docs") or [] if isinstance(result, dict) else []
+            if not docs:
+                break
+            found.update(doc.get("url") for doc in docs if doc.get("url") in wanted)
+            if found >= wanted:
+                break
+        if found >= wanted or attempt == attempts - 1:
             break
-        found.update(doc.get("url") for doc in docs if doc.get("url") in wanted)
-        if found >= wanted:
-            break
+        # Upload uses commitWithin, so search may lag a few seconds behind.
+        time.sleep(retry_delay)
 
     missing = wanted - found
     print(f"Verification: {len(found)}/{len(wanted)} uploaded URLs found in peviitor search")
